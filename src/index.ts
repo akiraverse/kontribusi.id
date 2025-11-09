@@ -4,6 +4,12 @@ import path from "path"
 import swaggerJSDoc from "swagger-jsdoc"
 import swaggerUi from "swagger-ui-express"
 
+import userRoute from "../src/routes/user.routes"
+import opportunityRoute from "../src/routes/volunteer_opportunity.routes"
+// import portofolioRoute from "../src/routes/portofolio.routes"
+import applicationRoute from "../src/routes/application.routes"
+// import impactRoute from "../src/routes/portofolio.routes"
+
 const app = express()
 app.use(cors())
 
@@ -41,7 +47,9 @@ const swaggerDocs = swaggerJSDoc(swaggerOptions)
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs))
 
-// app.get('')
+app.use('user', userRoute)
+app.use('opportunity', opportunityRoute)
+app.use('application', applicationRoute)
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
