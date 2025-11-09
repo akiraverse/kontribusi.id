@@ -1,0 +1,157 @@
+// This is your Prisma schema file for PostgreSQL
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  society
+  organization
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+model User {
+  id       String  @id @default(uuid())
+  name     String
+  email    String  @unique
+  password String
+  role     Role
+
+  volunteerProfile    VolunteerProfile?
+  organizationProfile OrganizationProfile?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user")
+}
+
+model VolunteerProfile {
+  id             String   @id @default(uuid())
+  location       String?
+  dateOfBirth    DateTime? @map("date_of_birth")
+  gender         String?
+  availableTime  String?  @map("available_time")
+  interests      String[]
+  skills         String[]
+
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  applications Application[]
+  portfolios   Portfolio[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("volunteer_profile")
+}
+
+model OrganizationProfile {
+  id          String  @id @default(uuid())
+  name        String
+  address     String?
+  phone       String?
+  description String?
+  structure   String?
+
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  opportunities   VolunteerOpportunity[]
+  impactAnalyses  ImpactAnalysis[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organization_profile")
+}
+
+model VolunteerOpportunity {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  rules           String?
+  location        String?
+  startDate       DateTime @map("start_date")
+  endDate         DateTime @map("end_date")
+  category        String?
+  capacity        Int
+  requiredSkills  String[] @map("required_skills")
+  matchingScore   Float?   @map("matching_score")
+
+  organizationId String              @map("organization_id")
+  organization   OrganizationProfile @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  applications Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("volunteer_opportunity")
+}
+
+model Application {
+  id          String            @id @default(uuid())
+  applyDate   DateTime          @default(now()) @map("apply_date")
+  status      ApplicationStatus @default(PENDING)
+  position    String            @default("")
+  description String            @default("")
+
+  volunteerId String           @map("volunteer_id")
+  volunteer   VolunteerProfile @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  opportunityId String               @map("opportunity_id")
+  opportunity   VolunteerOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("application")
+}
+
+model ImpactAnalysis {
+  id              String   @id @default(uuid())
+  totalHours      Int      @map("total_hours")
+  totalVolunteers Int      @map("total_volunteers")
+  beneficiaries   Int
+  regionCovered   String?  @map("region_covered")
+  lastUpdated     DateTime @default(now()) @map("last_updated")
+
+  organizationId String              @map("organization_id")
+  organization   OrganizationProfile @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("impact_analysis")
+}
+
+model Portfolio {
+  id                String  @id @default(uuid())
+  activityTitle     String  @map("activity_title")
+  contributionHours Int     @map("contribution_hours")
+  certificate       String? // URL or path to PDF file
+  badge             String?
+  feedback          String?
+
+  volunteerId String           @map("volunteer_id")
+  volunteer   VolunteerProfile @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("portfolio")
+}
