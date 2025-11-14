@@ -225,6 +225,13 @@ export const updateUser = async (req: Request, res: Response) => {
 				}
 		});
 
+		if (Number(user?.id) !== Number((req as any).user.id)) {
+			return res.status(403).json({
+				status: false,
+				message: `You are not authorized to update another user profile`,
+			});
+		}
+
 		if (!user) {
 			return res.status(404).json({
 			status: false,
@@ -307,6 +314,13 @@ export const deleteUser = async (req: Request, res: Response) => {
 			return res.status(404).json({
 				status: false,
 				message: "User not found"
+			});
+		}
+
+		if (Number(user?.id) !== Number((req as any).user.id)) {
+			return res.status(403).json({
+				status: false,
+				message: `You are not authorized to delete another user profile`,
 			});
 		}
 
