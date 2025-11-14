@@ -5,7 +5,16 @@ const prisma = new PrismaClient();
 
 export const getAllApplication = async (req: Request, res: Response) => {
 	try {
+		const findOrganization = await prisma.organizationProfile.findUnique({
+			where: {userId: Number((req as any).user.id)}
+		})
+
 		const applications = await prisma.application.findMany({
+			where: {
+				opportunity: {
+					organizationId: Number(findOrganization?.id)
+				}
+			},
 			include: {
 				volunteer: {
 					include: {
@@ -39,8 +48,18 @@ export const getAllApplication = async (req: Request, res: Response) => {
 export const getApplicationById = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
+
+		const findOrganization = await prisma.organizationProfile.findUnique({
+			where: {userId: Number((req as any).user.id)}
+		})
+
 		const application = await prisma.application.findUnique({
-			where: { id },
+			where: {
+				id: Number(id),
+				opportunity: {
+					organizationId: Number(findOrganization?.id)
+				}
+			},
 			include: {
 			volunteer: {
 				include: {
@@ -96,7 +115,7 @@ export const getApplicationsByVolunteer = async (req: Request, res: Response) =>
 		const { volunteerId } = req.params;
 
 		const applications = await prisma.application.findMany({
-			where: { volunteerId },
+			where: { volunteerId: Number(volunteerId) },
 			include: {
 			opportunity: {
 				include: {
@@ -137,7 +156,7 @@ export const getApplicationsByOpportunity = async (req: Request, res: Response) 
 		const { opportunityId } = req.params;
 
 		const applications = await prisma.application.findMany({
-			where: { opportunityId },
+			where: { opportunityId: Number(opportunityId) },
 			include: {
 			volunteer: {
 				include: {
@@ -226,17 +245,9 @@ export const createApplication = async (req: Request, res: Response) => {
 			opportunity_id
 		} = req.body;
 
-		// Validate required fields
-		if (!volunteer_id || !opportunity_id) {
-			return res.status(400).json({
-			status: false,
-			message: "Missing required fields: volunteer_id, opportunity_id"
-			});
-		}
-
 		// Check if volunteer exists
 		const volunteer = await prisma.volunteerProfile.findUnique({
-			where: { id: volunteer_id }
+			where: { userId: Number((req as any).user.id) }
 		});
 
 		if (!volunteer) {
@@ -252,9 +263,9 @@ export const createApplication = async (req: Request, res: Response) => {
 			include: {
 			applications: {
 				where: {
-				status: {
-				in: [ApplicationStatus.ACCEPTED, ApplicationStatus.PENDING]
-				}
+					status: {
+						in: [ApplicationStatus.ACCEPTED, ApplicationStatus.PENDING, ApplicationStatus.REJECTED, ApplicationStatus.COMPLETED]
+					}
 				}
 			}
 			}
@@ -305,35 +316,35 @@ export const createApplication = async (req: Request, res: Response) => {
 		// Create application
 		const application = await prisma.application.create({
 			data: {
-			volunteerId: volunteer_id,
+			volunteerId: Number(volunteer.id),
 			opportunityId: opportunity_id,
 			status: ApplicationStatus.PENDING
 			},
 			include: {
 			volunteer: {
 				include: {
-				user: {
-				select: {
-					id: true,
-					name: true,
-					email: true
-				}
-				}
+					user: {
+						select: {
+							id: true,
+							name: true,
+							email: true
+						}
+					}
 				}
 			},
 			opportunity: {
 				include: {
-				organization: {
-				include: {
-					user: {
-					select: {
-						id: true,
-						name: true,
-						email: true
+					organization: {
+						include: {
+							user: {
+								select: {
+									id: true,
+									name: true,
+									email: true
+								}
+							}
+						}
 					}
-					}
-				}
-				}
 				}
 			}
 			}
@@ -356,7 +367,11 @@ export const createApplication = async (req: Request, res: Response) => {
 export const updateApplicationStatus = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const { status } = req.body;
+		const { status, position, description } = req.body;
+
+		const findOrganization = await prisma.organizationProfile.findUnique({
+			where: {userId: Number((req as any).user.id)}
+		})
 
 		// Validate status
 		if (!status || !Object.values(ApplicationStatus).includes(status as ApplicationStatus)) {
@@ -368,7 +383,7 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
 
 		// Check if application exists
 		const application = await prisma.application.findUnique({
-			where: { id },
+			where: { id: Number(id) },
 			include: {
 			opportunity: {
 				include: {
@@ -381,6 +396,14 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
 			}
 			}
 		});
+		
+
+		if (Number(findOrganization?.id) !== Number(application?.opportunity.organizationId)) {
+			return res.status(403).json({
+				status: false,
+				message: `You are not authorized to update another organization's application`,
+			});
+		}
 
 		if (!application) {
 			return res.status(404).json({
@@ -400,8 +423,17 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
 		}
 
 		const updatedApplication = await prisma.application.update({
-			where: { id },
-			data: { status: status as ApplicationStatus },
+			where: { 
+				id: Number(id),
+				opportunity: {
+					organizationId: Number(findOrganization?.id)
+				}
+			},
+			data: { 
+				status: status as ApplicationStatus,
+				position: position,
+				description: description
+			},
 			include: {
 				volunteer: {
 					include: {
@@ -439,8 +471,21 @@ export const deleteApplication = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 
+		const findVolunteer = await prisma.volunteerProfile.findUnique({
+			where: {userId: Number((req as any).user.id)}
+		})
+
 		const application = await prisma.application.findUnique({
-			where: { id }
+			where: {
+				id: Number(id),
+			},
+			include : {
+				opportunity: {
+					include: {
+						organization: true
+					}
+				}
+			}
 		});
 
 		if (!application) {
@@ -458,9 +503,19 @@ export const deleteApplication = async (req: Request, res: Response) => {
 			});
 		}
 
+		if (Number(findVolunteer?.id) !== Number(application?.volunteerId)) {
+			return res.status(403).json({
+				status: false,
+				message: `You are not authorized to delete another volunteer's application`,
+			});
+		}
+
 		// Delete application
 		const deletedApplication = await prisma.application.delete({
-			where: { id }
+			where: { 
+				id: Number(id),
+				volunteerId: Number(findVolunteer?.id)
+			},
 		});
 
 		return res.status(200).json({
@@ -482,7 +537,7 @@ export const getApplicationStatistics = async (req: Request, res: Response) => {
 
 		const stats = await prisma.application.groupBy({
 			by: ['status'],
-			where: volunteerId ? { volunteerId } : {},
+			where: volunteerId ? { volunteerId: Number(volunteerId) } : {},
 			_count: {
 			status: true
 			}

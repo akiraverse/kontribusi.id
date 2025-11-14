@@ -11,8 +11,13 @@ datasource db {
 }
 
 enum Role {
-  society
+  volunteer
   organization
+}
+
+enum Gender {
+  female
+  male
 }
 
 enum ApplicationStatus {
@@ -23,11 +28,12 @@ enum ApplicationStatus {
 }
 
 model User {
-  id       String  @id @default(uuid())
+  id       Int     @id @default(autoincrement())
   name     String
   email    String  @unique
   password String
   role     Role
+  file     String?
 
   volunteerProfile    VolunteerProfile?
   organizationProfile OrganizationProfile?
@@ -39,19 +45,20 @@ model User {
 }
 
 model VolunteerProfile {
-  id             String   @id @default(uuid())
+  id             Int       @id @default(autoincrement())
   location       String?
   dateOfBirth    DateTime? @map("date_of_birth")
-  gender         String?
-  availableTime  String?  @map("available_time")
+  gender         Gender?
+  availableDay   String[]  @map("available_day") // Array: ["Monday", "Tuesday", "Wednesday"]
   interests      String[]
   skills         String[]
 
-  userId String @unique @map("user_id")
+  userId Int    @unique @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  applications Application[]
-  portfolios   Portfolio[]
+  applications    Application[]
+  portfolios      Portfolio[]
+  availableTimes  AvailableTime[] @relation("VolunteerAvailableTimes")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -59,15 +66,34 @@ model VolunteerProfile {
   @@map("volunteer_profile")
 }
 
+model AvailableTime {
+  id          Int      @id @default(autoincrement())
+  timeFrom    String   @map("time_from") // e.g. "09:00"
+  timeTo      String   @map("time_to")   // e.g. "10:00"
+
+  // Usage tracking columns
+  usageCountVolunteer   Int @default(0) @map("usage_count_volunteer")
+  usageCountOpportunity Int @default(0) @map("usage_count_opportunity")
+
+  // Many-to-many relations back to volunteer & opportunity
+  volunteerProfiles  VolunteerProfile[]   @relation("VolunteerAvailableTimes")
+  volunteerOpportunities VolunteerOpportunity[] @relation("OpportunityAvailableTimes")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("available_time")
+}
+
 model OrganizationProfile {
-  id          String  @id @default(uuid())
+  id          Int       @id @default(autoincrement())
   name        String
   address     String?
   phone       String?
   description String?
   structure   String?
 
-  userId String @unique @map("user_id")
+  userId Int    @unique @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   opportunities   VolunteerOpportunity[]
@@ -80,7 +106,7 @@ model OrganizationProfile {
 }
 
 model VolunteerOpportunity {
-  id              String   @id @default(uuid())
+  id              Int    @id @default(autoincrement())
   title           String
   description     String?
   rules           String?
@@ -92,10 +118,11 @@ model VolunteerOpportunity {
   requiredSkills  String[] @map("required_skills")
   matchingScore   Float?   @map("matching_score")
 
-  organizationId String              @map("organization_id")
+  organizationId Int                 @map("organization_id")
   organization   OrganizationProfile @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   applications Application[]
+  availableTimes AvailableTime[] @relation("OpportunityAvailableTimes")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -104,16 +131,16 @@ model VolunteerOpportunity {
 }
 
 model Application {
-  id          String            @id @default(uuid())
+  id          Int             @id @default(autoincrement())
   applyDate   DateTime          @default(now()) @map("apply_date")
   status      ApplicationStatus @default(PENDING)
   position    String            @default("")
   description String            @default("")
 
-  volunteerId String           @map("volunteer_id")
+  volunteerId Int              @map("volunteer_id")
   volunteer   VolunteerProfile @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
 
-  opportunityId String               @map("opportunity_id")
+  opportunityId Int                  @map("opportunity_id")
   opportunity   VolunteerOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
@@ -123,14 +150,14 @@ model Application {
 }
 
 model ImpactAnalysis {
-  id              String   @id @default(uuid())
+  id              Int    @id @default(autoincrement())
   totalHours      Int      @map("total_hours")
   totalVolunteers Int      @map("total_volunteers")
   beneficiaries   Int
   regionCovered   String?  @map("region_covered")
   lastUpdated     DateTime @default(now()) @map("last_updated")
 
-  organizationId String              @map("organization_id")
+  organizationId Int                 @map("organization_id")
   organization   OrganizationProfile @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
@@ -140,14 +167,14 @@ model ImpactAnalysis {
 }
 
 model Portfolio {
-  id                String  @id @default(uuid())
+  id                Int   @id @default(autoincrement())
   activityTitle     String  @map("activity_title")
   contributionHours Int     @map("contribution_hours")
   certificate       String? // URL or path to PDF file
   badge             String?
   feedback          String?
 
-  volunteerId String           @map("volunteer_id")
+  volunteerId Int              @map("volunteer_id")
   volunteer   VolunteerProfile @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())

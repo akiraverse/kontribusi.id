@@ -19,8 +19,8 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get('/', getAllApplication)
 app.get('/:id', getApplicationById)
-app.post('/', [verifyToken, verifyRole([Role.society])], createApplication)
-app.put('/:id', [verifyToken, verifyRole([Role.society])], updateApplicationStatus)
-app.delete('/:id', [verifyToken, verifyRole([Role.society])], deleteApplication)
+app.post('/', [verifyToken, verifyRole([Role.volunteer])], createApplication)
+app.put('/:id', [verifyToken, verifyRole([Role.organization])], updateApplicationStatus)
+app.delete('/:id', [verifyToken, verifyRole([Role.volunteer])], deleteApplication)
 
 export default app;

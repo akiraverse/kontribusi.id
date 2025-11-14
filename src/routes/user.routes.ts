@@ -19,8 +19,8 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/', getAllUser)
 app.get('/:id', getUserById)
 app.post('/', uploadFile.single("file"), createUser, verifyAddUser)
-app.put('/:id', [verifyToken, verifyRole([Role.organization, Role.society])], uploadFile.single("file"), updateUser, verifyEditUser)
-app.delete('/:id', [verifyToken, verifyRole([Role.organization, Role.society])], deleteUser)
+app.put('/:id', [verifyToken, verifyRole([Role.organization, Role.volunteer])], uploadFile.single("file"), updateUser, verifyEditUser)
+app.delete('/:id', [verifyToken, verifyRole([Role.organization, Role.volunteer])], deleteUser)
 app.post('/login', authentication, verifyAuthentication)
 
 export default app;

@@ -57,7 +57,7 @@ export const getOpportunityById = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 		const opportunity = await prisma.volunteerOpportunity.findUnique({
-			where: { id },
+			where: { id: Number(id) },
 			include: {
 			organization: {
 				include: {
@@ -115,7 +115,7 @@ export const getOpportunityByOrganization = async (req: Request, res: Response) 
 		const { organizationId } = req.params;
 		
 		const opportunities = await prisma.volunteerOpportunity.findMany({
-			where: { organizationId },
+			where: { organizationId: Number(organizationId) },
 			include: {
 				organization: true,
 				applications: {
@@ -153,6 +153,8 @@ export const getOpportunityByOrganization = async (req: Request, res: Response) 
 };
 
 export const createOpportunity = async (req: Request, res: Response) => {
+
+
 	try {
 		const {
 			title,
@@ -166,15 +168,8 @@ export const createOpportunity = async (req: Request, res: Response) => {
 			organization_id
 		} = req.body;
 
-		if (!title || !start_date || !end_date || !capacity || !organization_id) {
-			return res.status(400).json({
-			status: false,
-			message: "Missing required fields: title, start_date, end_date, capacity, organization_id"
-			});
-		}
-
 		const organization = await prisma.organizationProfile.findUnique({
-			where: { id: organization_id }
+			where: { userId: Number((req as any).user.id) }
 		});
 
 		if (!organization) {
@@ -196,15 +191,15 @@ export const createOpportunity = async (req: Request, res: Response) => {
 
 		const opportunity = await prisma.volunteerOpportunity.create({
 			data: {
-				title,
+				title: title,
 				description: description || null,
 				location: location || null,
-				startDate,
-				endDate,
+				startDate: startDate,
+				endDate: endDate,
 				category: category || null,
 				capacity: parseInt(capacity),
 				requiredSkills: required_skills || [],
-				organizationId: organization_id
+				organizationId: Number(organization.id)
 			},
 			include: {
 				organization: {
@@ -220,6 +215,7 @@ export const createOpportunity = async (req: Request, res: Response) => {
 				}
 			}
 		});
+
 
 		return res.status(201).json({
 			status: true,
@@ -250,8 +246,12 @@ export const updateOpportunity = async (req: Request, res: Response) => {
 			matching_score
 		} = req.body;
 
+		const findOrganization = await prisma.organizationProfile.findUnique({
+			where: {userId: Number((req as any).user.id)}
+		})
+
 		const opportunity = await prisma.volunteerOpportunity.findUnique({
-			where: { id },
+			where: { id: Number(id) },
 		});
 
 		if (!opportunity) {
@@ -261,44 +261,62 @@ export const updateOpportunity = async (req: Request, res: Response) => {
 			});
 		}
 
-    const updatedOpportunity = await prisma.volunteerOpportunity.update({
-		where: { id },
-		data: {
-			title,
-			description: description || opportunity.description,
-			location: location || opportunity.location,
-			category: category || opportunity.category,
-			startDate: start_date
-			? new Date(start_date)
-			: opportunity.startDate,
-			endDate: end_date
-			? new Date(end_date)
-			: opportunity.endDate,
-			capacity: parseInt(capacity) || opportunity.capacity,
-			requiredSkills: required_skills || opportunity.requiredSkills,
-			matchingScore: parseFloat(matching_score) || opportunity.matchingScore
-		},
-		include: {
-			organization: {
-				include: {
-					user: {
-						select: {
-							id: true,
-							name: true,
-							email: true
-						}
-					}
-				}
-			},
-		applications: true
+		if (Number(findOrganization?.id) !== Number(opportunity.organizationId)) {
+			return res.status(403).json({
+				status: false,
+				message: `You are not authorized to update another organization's volunteer opportunity`,
+			});
 		}
-    });
 
-	return res.status(200).json({
-		status: true,
-		data: updatedOpportunity,
-		message: `opportunity has been updated`
-    });
+
+		const updatedOpportunity = await prisma.volunteerOpportunity.update({
+				where: { 
+					id: Number(id),
+					organizationId: Number(findOrganization?.id)
+				},
+				data: {
+					title,
+					description: description || opportunity.description,
+					location: location || opportunity.location,
+					category: category || opportunity.category,
+					startDate: start_date
+					? new Date(start_date)
+					: opportunity.startDate,
+					endDate: end_date
+					? new Date(end_date)
+					: opportunity.endDate,
+					capacity: parseInt(capacity) || opportunity.capacity,
+					requiredSkills: required_skills || opportunity.requiredSkills,
+					matchingScore: parseFloat(matching_score) || opportunity.matchingScore
+				},
+				include: {
+					organization: {
+						include: {
+							user: {
+								select: {
+									id: true,
+									name: true,
+									email: true
+								}
+							}
+						}
+					},
+				applications: true
+				}
+		});
+
+		if (!updatedOpportunity) {
+			return res.status(403).json({
+				status: false,
+				message: `you updated other org event, dont!`
+			});
+		}
+
+		return res.status(200).json({
+			status: true,
+			data: updatedOpportunity,
+			message: `opportunity has been updated`
+		});
 	} catch (error) {
 		return res.status(400).json({
 			status: false,
@@ -311,8 +329,12 @@ export const deleteOpportunity = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 
+		const findOrganization = await prisma.organizationProfile.findUnique({
+			where: {userId: Number((req as any).user.id)}
+		})
+
 		const opportunity = await prisma.volunteerOpportunity.findUnique({
-			where: { id }
+			where: { id: Number(id) }
 		});
 
 		if (!opportunity) {
@@ -322,9 +344,26 @@ export const deleteOpportunity = async (req: Request, res: Response) => {
 			});
 		}
 
+		if (Number(findOrganization?.id) !== Number(opportunity.organizationId)) {
+			return res.status(403).json({
+				status: false,
+				message: `You are not authorized to delete another organization's volunteer opportunity`,
+			});
+		}
+
 		const deletedOpportunity = await prisma.volunteerOpportunity.delete({
-			where: { id }
+			where: { 
+				id: Number(id),
+				organizationId: Number(findOrganization?.id)
+			},
 		});
+
+		if (!deletedOpportunity) {
+			return res.status(403).json({
+				status: false,
+				message: `you want to delete other org event, dont!`
+			});
+		}
 
 		return res.status(200).json({
 			status: true,

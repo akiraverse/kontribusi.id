@@ -32,7 +32,7 @@ export const getUserById = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 		const user = await prisma.user.findUnique({
-			where: { id },
+			where: { id: Number(id) },
 			include: {
 			volunteerProfile: {
 				include: {
@@ -85,15 +85,18 @@ export const createUser = async (req: Request, res: Response) => {
 			location,
 			date_of_birth,
 			gender,
-			available_time,
+			available_day,
 			interests,
 			skills,
+			availableTimeIds,
 			// Organization inquiries
 			org_name,
 			address,
 			phone,
 			description
 		} = req.body;
+
+		const file = req.file ? req.file.filename : null;
 
 		if (!name || !email || !password || !role) {
 			return res.status(400).json({
@@ -117,21 +120,29 @@ export const createUser = async (req: Request, res: Response) => {
 			name,
 			email,
 			password: hashedPassword,
-			role
+			role,
+			file
 		};
 
 	
-		if (role === Role.society) {
+		if (role === Role.volunteer) {
 			userData.volunteerProfile = {
 				create: {
 					location: location || null,
 					dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
 					gender: gender || null,
-					availableTime: available_time || null,
+					availableDay: available_day || null,
 					interests: interests || [],
-					skills: skills || []
+					skills: skills || [],
+					availableTimes: availableTimeIds
+					? {
+						connect: availableTimeIds.map((id: number) => ({ id })),
+					}
+					: undefined,
 				}
 			};
+
+			
 		} else if (role === Role.organization) {
 			if (!org_name) {
 				return res.status(400).json({
@@ -157,9 +168,19 @@ export const createUser = async (req: Request, res: Response) => {
 			organizationProfile: true
 			}
 		});
-
 	
 		const { password: _, ...userWithoutPassword } = user;
+
+		if (availableTimeIds && availableTimeIds.length > 0) {
+			await prisma.$transaction(
+				availableTimeIds.map((id: number) =>
+					prisma.availableTime.update({
+					where: { id },
+					data: { usageCountVolunteer: { increment: 1 } },
+					})
+				)
+			);
+		}
 
 		return res.status(201).json({
 			status: true,
@@ -186,7 +207,7 @@ export const updateUser = async (req: Request, res: Response) => {
 			location,
 			date_of_birth,
 			gender,
-			available_time,
+			available_day,
 			interests,
 			skills,
 			// Organization inquiries
@@ -197,11 +218,11 @@ export const updateUser = async (req: Request, res: Response) => {
 		} = req.body;
 
 		const user = await prisma.user.findUnique({
-			where: { id },
-			include: {
-			volunteerProfile: true,
-			organizationProfile: true
-			}
+			where: { id: Number(id) },
+				include: {
+					volunteerProfile: true,
+					organizationProfile: true
+				}
 		});
 
 		if (!user) {
@@ -211,10 +232,12 @@ export const updateUser = async (req: Request, res: Response) => {
 			});
 		}
 
+		const file = req.file ? req.file.filename : undefined;
 
 		const updatedData: any = {
 			name: name || user.name,
-			email: email || user.email
+			email: email || user.email,
+			file: file || user.file
 		};
 
 
@@ -223,7 +246,7 @@ export const updateUser = async (req: Request, res: Response) => {
 		}
 
 	// Update profile based on role
-	if (user.role === Role.society && user.volunteerProfile) {
+	if (user.role === Role.volunteer && user.volunteerProfile) {
 
 		updatedData.volunteerProfile = {
 			update: {
@@ -231,7 +254,7 @@ export const updateUser = async (req: Request, res: Response) => {
 				dateOfBirth: date_of_birth ? new Date(date_of_birth) 
 				: user.volunteerProfile.dateOfBirth,
 				gender: gender || user.volunteerProfile.gender,
-				availableTime: available_time || user.volunteerProfile.availableTime,
+				availableDay: available_day || user.volunteerProfile.availableDay,
 				interests: interests || user.volunteerProfile.interests,
 				skills: skills || user.volunteerProfile.skills
 			}
@@ -250,7 +273,7 @@ export const updateUser = async (req: Request, res: Response) => {
 
 	// Update user
 	const updatedUser = await prisma.user.update({
-		where: { id },
+		where: { id: Number(id) },
 		data: updatedData,
 		include: {
 			volunteerProfile: true,
@@ -278,7 +301,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 
-		const user = await prisma.user.findUnique({ where: { id } });
+		const user = await prisma.user.findUnique({ where: { id: Number(id) } });
 
 		if (!user) {
 			return res.status(404).json({
@@ -287,7 +310,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 			});
 		}
 
-		const deletedUser = await prisma.user.delete({ where: { id } });
+		const deletedUser = await prisma.user.delete({ where: { id: Number(id) } });
 
 		const { password: _, ...userWithoutPassword } = deletedUser;
 

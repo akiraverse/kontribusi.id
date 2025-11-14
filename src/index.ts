@@ -10,10 +10,12 @@ import opportunityRoute from "../src/routes/volunteer_opportunity.routes"
 import applicationRoute from "../src/routes/application.routes"
 // import impactRoute from "../src/routes/portofolio.routes"
 
-const app = express()
-app.use(cors())
 
-const PORT = process.env.PORT || 8000
+const app = express()
+app.use(cors());
+app.use(express.json());
+
+const PORT = process.env.PORT || 4000
 
 // Swagger setup...
 const swaggerOptions = {
@@ -47,9 +49,9 @@ const swaggerDocs = swaggerJSDoc(swaggerOptions)
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs))
 
-app.use('user', userRoute)
-app.use('opportunity', opportunityRoute)
-app.use('application', applicationRoute)
+app.use('/user', userRoute)
+app.use('/opportunity', opportunityRoute)
+app.use('/application', applicationRoute)
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
