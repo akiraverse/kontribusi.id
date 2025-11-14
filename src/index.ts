@@ -6,9 +6,9 @@ import swaggerUi from "swagger-ui-express"
 
 import userRoute from "../src/routes/user.routes"
 import opportunityRoute from "../src/routes/volunteer_opportunity.routes"
-// import portofolioRoute from "../src/routes/portofolio.routes"
+import portofolioRoute from "../src/routes/portofolio.routes"
 import applicationRoute from "../src/routes/application.routes"
-// import impactRoute from "../src/routes/portofolio.routes"
+import impactRoute from "../src/routes/impact_analysis.routes"
 
 
 const app = express()
@@ -52,6 +52,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs))
 app.use('/user', userRoute)
 app.use('/opportunity', opportunityRoute)
 app.use('/application', applicationRoute)
+app.use('/portofolio', portofolioRoute)
+app.use('/impact', impactRoute)
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

@@ -123,6 +123,7 @@ model VolunteerOpportunity {
 
   applications Application[]
   availableTimes AvailableTime[] @relation("OpportunityAvailableTimes")
+  impactAnalyses  ImpactAnalysis[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -160,6 +161,9 @@ model ImpactAnalysis {
   organizationId Int                 @map("organization_id")
   organization   OrganizationProfile @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  opportunityId Int     @unique            @map("opportunity_id")
+  opportunity   VolunteerOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -174,7 +178,7 @@ model Portfolio {
   badge             String?
   feedback          String?
 
-  volunteerId Int              @map("volunteer_id")
+  volunteerId Int           @unique     @map("volunteer_id")
   volunteer   VolunteerProfile @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
