@@ -154,7 +154,6 @@ export const getOpportunityByOrganization = async (req: Request, res: Response) 
 
 export const createOpportunity = async (req: Request, res: Response) => {
 
-
 	try {
 		const {
 			title,

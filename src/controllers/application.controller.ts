@@ -241,7 +241,6 @@ export const getApplicationsByStatus = async (req: Request, res: Response) => {
 export const createApplication = async (req: Request, res: Response) => {
 	try {
 		const {
-			volunteer_id,
 			opportunity_id
 		} = req.body;
 
@@ -281,8 +280,12 @@ export const createApplication = async (req: Request, res: Response) => {
 		// Check if already applied
 		const existingApplication = await prisma.application.findFirst({
 			where: {
-			volunteerId: volunteer_id,
-			opportunityId: opportunity_id
+				volunteer: {
+					user: {
+						id: (req as any).user.id,
+					}
+				},
+				opportunityId: opportunity_id
 			}
 		});
 
